@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "adhd-eeg"
+version = "0.1.0"
+description = "Deep learning diagnosis of ADHD in children from EEG signals via Morlet time-frequency images"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+
+[tool.setuptools.packages.find]
+include = ["adhd_eeg*"]
