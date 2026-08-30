@@ -183,6 +183,35 @@ The customised ResNet outperforms the CNN on accuracy, precision, recall, and F1
 
 These numbers are quoted from the published paper; this repository does not independently re-verify them, since doing so requires the private dataset and non-trivial GPU training time (see [Reproducibility notes](#reproducibility-notes)).
 
+### Validation caveat: the folds share subjects
+
+The cross-validation splits at the **segment** level. Each subject contributes many segments, so segments from the same child appear in both the training and the test fold of a given split. A model can therefore recognise the *subject* — individual alpha peak, electrode impedance, persistent artefacts — instead of the *condition*.
+
+The subject id was already computed and passed into `cross_validate`; it was stored as `full_data["person"]` and never used for splitting.
+
+How much this matters can be measured without any EEG data. Using this repository's own `build_folds`, on 20 synthetic subjects whose features encode a per-subject signature and whose labels carry **no generalisable signal at all** (true accuracy = chance = 0.500):
+
+| Split strategy | Accuracy | Test subjects also seen in training |
+|---|---|---|
+| `segment` (as published) | **1.000** | 62 |
+| `subject` | 0.574 | 0 |
+
+The segment strategy reaches perfect accuracy on data containing nothing to learn.
+
+This does **not** show the published 98.6% is entirely leakage — real EEG plausibly carries genuine ADHD signal, and the paper's own caveat about cohort size stands. It does show that the reported figure cannot be read as *subject-level generalisation*: the protocol cannot distinguish learning the condition from recognising the child. The table above also labels one row "Subject", but the published code aggregated votes per **segment**, not per subject.
+
+`cross_validate` now takes two explicit arguments:
+
+```python
+# Reproduces the published pipeline (default, leaks subjects)
+cross_validate(..., split_by="segment", aggregate_by="segment")
+
+# Leakage-free: no subject spans the split, votes aggregated per child
+cross_validate(..., split_by="subject", aggregate_by="person")
+```
+
+The default is unchanged so previously reported numbers stay reproducible. Any **new** result should use `split_by="subject"`. Producing a corrected figure requires the private dataset and GPU training; it has not been run here. `tests/test_cv_splits.py` asserts that the leak exists under `segment` and is absent under `subject`.
+
 ---
 
 ## Tech stack
