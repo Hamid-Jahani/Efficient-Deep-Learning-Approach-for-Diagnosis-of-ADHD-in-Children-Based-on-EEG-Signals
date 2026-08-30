@@ -24,8 +24,7 @@ Both models are evaluated with **10-fold stratified cross-validation**, at two l
 
 ```
 .
-├── ADHD.ipynb            # Original end-to-end Colab notebook (data loading through evaluation)
-├── adhd_eeg/              # Reusable Python package, extracted from the notebook
+├── adhd_eeg/              # Reusable Python package
 │   ├── config.py          #   dataset path resolution (no more hardcoded Google Drive paths)
 │   ├── resnets_utils.py   #   one-hot encoding helper (previously an unincluded external import)
 │   ├── features.py        #   EEG -> Morlet-wavelet RGB image feature extraction
@@ -43,7 +42,7 @@ Both models are evaluated with **10-fold stratified cross-validation**, at two l
 └── README.md                 # This file
 ```
 
-The notebook is kept as-is for reference and for anyone reproducing results in Colab exactly as published. The `adhd_eeg/` package extracts the same logic into plain, importable, testable Python so the pipeline can also run as a script on any machine (local workstation, server, CI).
+The `adhd_eeg/` package holds the pipeline as plain, importable, testable Python, so it runs as a script on any machine (local workstation, server, CI). The original Colab notebook is no longer tracked; it remains in the git history.
 
 ---
 
@@ -91,13 +90,11 @@ Obtain the dataset used in the accompanying paper (or a compatible EEGLAB datase
 
 If the directory is missing or incomplete, `adhd_eeg.train` and `adhd_eeg.config.resolve_data_dir` fail immediately with a message explaining exactly what's expected — they do not fail silently or produce fabricated results.
 
-For the original Colab workflow, the notebook instead expects the dataset on Google Drive under `MyDrive/adhd_dataset/` with the same subfolder layout.
-
 ---
 
 ## How to run
 
-### Option A — Python script / CLI (local machine)
+### Python script / CLI
 
 ```bash
 python -m adhd_eeg.train --data-dir /path/to/adhd_dataset --model resnet
@@ -115,14 +112,6 @@ Key flags (see `python -m adhd_eeg.train --help` for the full list):
 | `--segment-size` | `20` | Epochs per subject-level segment (matches the paper) |
 
 This runs the full Morlet-image feature extraction and k-fold cross-validation described in the paper. It requires the real dataset and can take a long time on CPU — a GPU is recommended for anything beyond a couple of folds.
-
-### Option B — Original Colab notebook
-
-1. Open `ADHD.ipynb` in [Google Colab](https://colab.research.google.com/) (GPU runtime recommended).
-2. Place the EEG dataset on your Google Drive under `MyDrive/adhd_dataset/` (EEGLAB `.set` files for the `ADHD_part*` and `Control_part*` groups).
-3. Run the cells top to bottom. The notebook mounts Drive, installs dependencies, generates the Morlet RGB images, and trains/evaluates the models.
-
-> Note: `ADHD.ipynb` imports `resnets_utils` (helper functions such as `convert_to_one_hot`), which was a companion file used with the original ResNet code and was never included in this repository. A drop-in reimplementation is provided at `adhd_eeg/resnets_utils.py` — add this repo's root (or just that file) to your Colab path if you hit `ModuleNotFoundError: No module named 'resnets_utils'`.
 
 ---
 
@@ -146,9 +135,9 @@ This runs the full Morlet-image feature extraction and k-fold cross-validation d
 
 ## Reproducibility notes
 
-- `adhd_eeg/cv.py` extracts the cross-validation logic in `ADHD.ipynb` line-for-line, including how leftover ("partial") segments are always folded into the training set rather than held out.
-- One quirk is preserved deliberately rather than "fixed": the notebook's segment-level `StratifiedKFold` split is stratified against a constant dummy column, not the real class label. Changing this would change the reported cross-validation results, so it's kept as published and called out in a code comment in `adhd_eeg/cv.py`.
-- Random seeds are fixed where the original notebook fixed them (`StratifiedKFold(random_state=10)`); model weight initialisation and `sklearn.utils.shuffle` are not separately seeded, matching the notebook, so exact metric values will still vary run to run.
+- `adhd_eeg/cv.py` reproduces the published cross-validation by default, including how leftover ("partial") segments are always folded into the training set rather than held out. See the subject-leakage warning in [Results](#results) and the `split_by` argument.
+- One quirk is preserved deliberately rather than "fixed": the segment-level `StratifiedKFold` split is stratified against a constant dummy column, not the real class label, so it degenerates to plain `KFold`. Changing it would change the reported results, so it is kept as published and documented in `adhd_eeg/cv.py`.
+- `StratifiedKFold` and `sklearn.utils.shuffle` are both seeded from `random_state`; the original left `shuffle` unseeded, so runs were not reproducible even with the splitter fixed. Model weight initialisation is still unseeded, so exact metric values vary run to run.
 - This repository does not re-run training to regenerate the paper's numbers — see [Results](#results) for the authors' caveat about the dataset size and augmentation.
 
 ---
@@ -159,10 +148,8 @@ This runs the full Morlet-image feature extraction and k-fold cross-validation d
 |---|---|
 | `FileNotFoundError: EEG dataset directory not found at ...` | Set `--data-dir` / `ADHD_DATA_DIR` to a valid path, or place the dataset under `data/adhd_dataset/` (see [Data](#data)). |
 | `FileNotFoundError: ... missing expected subfolder(s)` | Your dataset directory exists but doesn't have all of `ADHD_part1`, `ADHD_part2`, `Control_part1`, `Control_part2`. |
-| `ModuleNotFoundError: No module named 'resnets_utils'` (in Colab) | Only relevant to `ADHD.ipynb`; use `adhd_eeg/resnets_utils.py` from this repo, or add it to Colab's path. |
 | `ImportError` / version conflicts installing `tensorflow` | Use a fresh virtualenv with Python 3.9–3.11; `tensorflow<2.16` is pinned in `requirements.txt` for broad OS/GPU compatibility — adjust the pin if you need a newer TF/Keras. |
 | Training is very slow | Feature extraction (`mne.time_frequency.tfr_morlet`) and model training are both CPU-intensive; a GPU-backed TensorFlow install is recommended for anything beyond a smoke test. |
-| `pandasql` install/runtime errors | `pandasql` (used only by `ADHD.ipynb`, not by `adhd_eeg/`) depends on `sqlalchemy`; if it's problematic in your environment, use the `adhd_eeg` scripts instead, which don't depend on it. |
 
 ---
 
