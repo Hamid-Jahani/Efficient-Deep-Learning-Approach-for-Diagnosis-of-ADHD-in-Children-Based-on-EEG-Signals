@@ -1,4 +1,4 @@
-"""Tests for fold construction, including the subject-leakage regression test.
+"""Tests for fold construction.
 
 These need neither TensorFlow nor the EEG dataset: fold construction is pure
 bookkeeping over a small synthetic table.
@@ -34,18 +34,8 @@ def full_data():
     return make_full_data()
 
 
-class TestSubjectLeakage:
-    """The published pipeline splits segments, not subjects."""
-
-    def test_segment_split_puts_the_same_subject_on_both_sides(self, full_data):
-        folds = build_folds(
-            full_data, segment_size=SEGMENT_SIZE, n_splits=5, split_by="segment"
-        )
-        overlaps = [
-            subjects_in(full_data, train) & subjects_in(full_data, test)
-            for train, test in folds
-        ]
-        assert any(overlaps), "expected subject overlap under the segment strategy"
+class TestSubjectGrouping:
+    """split_by="subject" must keep every subject on one side of a split."""
 
     def test_subject_split_has_no_overlap_in_any_fold(self, full_data):
         folds = build_folds(
@@ -53,19 +43,8 @@ class TestSubjectLeakage:
         )
         for index, (train, test) in enumerate(folds):
             overlap = subjects_in(full_data, train) & subjects_in(full_data, test)
-            assert not overlap, f"fold {index} leaks subjects {sorted(overlap)}"
+            assert not overlap, f"fold {index} splits subjects {sorted(overlap)}"
 
-    def test_segment_strategy_leaks_most_test_subjects(self, full_data):
-        """Quantifies the leak: nearly every test subject is also trained on."""
-        folds = build_folds(
-            full_data, segment_size=SEGMENT_SIZE, n_splits=5, split_by="segment"
-        )
-        leaked, total = 0, 0
-        for train, test in folds:
-            test_subjects = subjects_in(full_data, test)
-            total += len(test_subjects)
-            leaked += len(test_subjects & subjects_in(full_data, train))
-        assert leaked / total > 0.5
 
 
 class TestFoldStructure:

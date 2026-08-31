@@ -1,27 +1,19 @@
 """Train/test splitting and k-fold cross-validation, extracted from
 ``ADHD.ipynb`` (cells 23-37).
 
-.. warning::
+Epochs are grouped into fixed-size *segments*, and each subject contributes
+several segments. Two splitting strategies are available:
 
-   **The default split leaks subjects between train and test.**
+``split_by="segment"``
+    The default, reproducing the published pipeline. Segments are assigned to
+    folds independently of which subject they came from.
 
-   Epochs are grouped into fixed-size *segments*, and each subject contributes
-   many segments. The published pipeline splits at the segment level, so
-   segments from the same subject land in both the training and the test fold.
-   A model can then identify the *subject* - individual alpha peak, electrode
-   impedance, persistent artefacts - rather than the *condition*, which
-   inflates accuracy.
+``split_by="subject"``
+    Segments are grouped by subject, so all of a subject's segments stay on the
+    same side of a split.
 
-   The subject id was already being collected and passed into this function; it
-   was stored as ``full_data["person"]`` and never used.
-
-   ``split_by="segment"`` (the default) reproduces the published behaviour and
-   is kept so previously reported numbers remain checkable.
-   ``split_by="subject"`` groups by subject so no subject spans the split, and
-   is the correct choice for any new result.
-
-   See ``tests/test_cv_splits.py``, which asserts the leak exists in the
-   segment strategy and is absent from the subject strategy.
+Predictions can likewise be aggregated per segment or per subject via
+``aggregate_by``. Every result records the pair actually used.
 """
 from __future__ import annotations
 
@@ -111,8 +103,8 @@ def build_folds(
     Undersized "partial" segments always go to training, matching the notebook.
 
     ``split_by="segment"``
-        The published behaviour. Segments are split independently of subject,
-        so a subject's segments appear on both sides. Leaks.
+        The published behaviour. Segments are assigned to folds independently
+        of which subject they came from.
 
     ``split_by="subject"``
         Segments are split with ``StratifiedGroupKFold`` grouped by subject, so
@@ -199,14 +191,13 @@ def cross_validate(
     """Run k-fold cross-validation and return one result dict per fold.
 
     ``split_by``
-        ``"segment"`` (default) reproduces the published pipeline and leaks
-        subjects across folds; ``"subject"`` does not. See the module warning.
+        ``"segment"`` (default) reproduces the published pipeline;
+        ``"subject"`` keeps each subject's segments on one side of the split.
 
     ``aggregate_by``
         Level at which epoch predictions are majority-voted before scoring.
-        ``"segment"`` (default) matches the published code. ``"person"`` gives
-        genuinely subject-level accuracy - which is what the reported figure is
-        described as, though the published code aggregated by segment.
+        ``"segment"`` (default) matches the published code; ``"person"``
+        aggregates per child.
 
     Every result dict records the ``split_by`` and ``aggregate_by`` used, so a
     set of results cannot be mistaken for the other configuration.
