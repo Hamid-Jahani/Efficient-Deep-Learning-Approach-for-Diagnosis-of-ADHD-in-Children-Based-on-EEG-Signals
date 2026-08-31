@@ -51,7 +51,7 @@ The `adhd_eeg/` package holds the pipeline as plain, importable, testable Python
 Requires **Python 3.9+**.
 
 ```bash
-git clone https://github.com/sheperd007/Efficient-Deep-Learning-Approach-for-Diagnosis-of-ADHD-in-Children-Based-on-EEG-Signals.git
+git clone https://github.com/Hamid-Jahani/Efficient-Deep-Learning-Approach-for-Diagnosis-of-ADHD-in-Children-Based-on-EEG-Signals.git
 cd Efficient-Deep-Learning-Approach-for-Diagnosis-of-ADHD-in-Children-Based-on-EEG-Signals
 
 python3 -m venv .venv
@@ -219,4 +219,4 @@ This repository's code is available under the [MIT License](LICENSE). The EEG da
 
 ---
 
-*Maintained by [Hamid Jahani](https://github.com/sheperd007).*
+*Maintained by [Hamid Jahani](https://github.com/Hamid-Jahani).*
